@@ -1,232 +1,298 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import NoteForm from './components/NoteForm';
+import NoteCard from './components/NoteCard';
 import './App.css';
 
+// Base URL for the Express backend REST API
+const API_URL = 'http://localhost:5000/api/notes';
+
 function App() {
-  const [serverStatus, setServerStatus] = useState('idle'); // 'idle' | 'checking' | 'connected' | 'error'
-  const [dbStatus, setDbStatus] = useState('unknown');
-  const [apiResponse, setApiResponse] = useState(null);
-  const [notesList, setNotesList] = useState(null);
+  // ----------------------------------------------------
+  // React State Management
+  // ----------------------------------------------------
+  // 1. notes: Array holding our list of notes from MongoDB
+  const [notes, setNotes] = useState([]);
 
-  const checkBackendConnection = async () => {
-    setServerStatus('checking');
+  // 2. isLoading: Boolean to show a loading message/spinner
+  const [isLoading, setIsLoading] = useState(true);
+
+  // 3. errorMessage: String to show any server or network error
+  const [errorMessage, setErrorMessage] = useState('');
+
+  // 4. editingNote: The note currently being edited (null when creating)
+  const [editingNote, setEditingNote] = useState(null);
+
+  // 5. isSubmitting: Boolean to disable buttons while saving
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // 6. searchQuery: String to filter notes by title, content, or tag
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // ----------------------------------------------------
+  // Fetch Request 1: GET /api/notes (Retrieve notes on page load)
+  // ----------------------------------------------------
+  const fetchNotes = async () => {
+    setIsLoading(true);
+    setErrorMessage('');
     try {
-      const response = await fetch('http://localhost:5000/');
+      const response = await fetch(API_URL);
+
       if (!response.ok) {
-        throw new Error(`Server returned status: ${response.status}`);
+        throw new Error(`Server error: ${response.status} ${response.statusText}`);
       }
+
       const data = await response.json();
-      setServerStatus('connected');
-      setDbStatus(data.databaseStatus || 'Connected');
-      setApiResponse(JSON.stringify(data, null, 2));
+      setNotes(data);
     } catch (err) {
-      setServerStatus('error');
-      setDbStatus('offline');
-      setApiResponse(`Could not reach backend at http://localhost:5000.\nDetails: ${err.message}`);
+      console.error('Fetch notes error:', err);
+      setErrorMessage(
+        'Could not load notes. Please check that your Express server and MongoDB are running on http://localhost:5000.'
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const testFetchNotes = async () => {
+  // Run fetchNotes once when the component first mounts
+  useEffect(() => {
+    fetchNotes();
+  }, []);
+
+  // ----------------------------------------------------
+  // Fetch Request 2 & 3: POST /api/notes and PUT /api/notes/:id
+  // ----------------------------------------------------
+  const handleFormSubmit = async (formData) => {
+    setIsSubmitting(true);
+    setErrorMessage('');
+
     try {
-      const response = await fetch('http://localhost:5000/api/notes');
-      const data = await response.json();
-      setNotesList(JSON.stringify(data, null, 2));
+      if (editingNote) {
+        // --- EDIT MODE (PUT) ---
+        const response = await fetch(`${API_URL}/${editingNote._id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to update note');
+        }
+
+        const updatedNote = await response.json();
+
+        // Update the note in local state
+        setNotes((prevNotes) =>
+          prevNotes.map((n) => (n._id === updatedNote._id ? updatedNote : n))
+        );
+
+        // Exit edit mode
+        setEditingNote(null);
+      } else {
+        // --- CREATE MODE (POST) ---
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to create note');
+        }
+
+        const createdNote = await response.json();
+
+        // Add the newly created note to local state (pinned notes at top)
+        setNotes((prevNotes) => {
+          if (createdNote.pinned) {
+            return [createdNote, ...prevNotes];
+          }
+          return [...prevNotes, createdNote];
+        });
+      }
     } catch (err) {
-      setNotesList(`Error calling GET /api/notes: ${err.message}`);
+      console.error('Save note error:', err);
+      setErrorMessage(err.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const testCreateNote = async () => {
+  // ----------------------------------------------------
+  // Fetch Request 4: DELETE /api/notes/:id
+  // ----------------------------------------------------
+  const handleDeleteNote = async (id) => {
+    setErrorMessage('');
     try {
-      const response = await fetch('http://localhost:5000/api/notes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: 'My First Test Note',
-          content: 'Created via Day 2 REST API endpoint test!',
-          tags: ['test', 'day2'],
-          pinned: true,
-        }),
+      const response = await fetch(`${API_URL}/${id}`, {
+        method: 'DELETE',
       });
-      const data = await response.json();
-      setNotesList(JSON.stringify(data, null, 2));
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete note');
+      }
+
+      // Remove the deleted note from local state
+      setNotes((prevNotes) => prevNotes.filter((note) => note._id !== id));
+
+      // If the deleted note was currently in edit mode, cancel edit mode
+      if (editingNote && editingNote._id === id) {
+        setEditingNote(null);
+      }
     } catch (err) {
-      setNotesList(`Error calling POST /api/notes: ${err.message}`);
+      console.error('Delete note error:', err);
+      setErrorMessage(err.message);
     }
   };
+
+  // ----------------------------------------------------
+  // Quick Toggle Pin (PUT /api/notes/:id)
+  // ----------------------------------------------------
+  const handleTogglePin = async (note) => {
+    try {
+      const response = await fetch(`${API_URL}/${note._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pinned: !note.pinned }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to toggle pin');
+      }
+
+      const updatedNote = await response.json();
+
+      // Update state and keep pinned notes sorted at top
+      setNotes((prevNotes) => {
+        const updated = prevNotes.map((n) =>
+          n._id === updatedNote._id ? updatedNote : n
+        );
+        return updated.sort((a, b) => {
+          if (a.pinned === b.pinned) {
+            return new Date(b.createdAt) - new Date(a.createdAt);
+          }
+          return a.pinned ? -1 : 1;
+        });
+      });
+    } catch (err) {
+      console.error('Pin toggle error:', err);
+      setErrorMessage(err.message);
+    }
+  };
+
+  // ----------------------------------------------------
+  // Filter notes by search query
+  // ----------------------------------------------------
+  const filteredNotes = notes.filter((note) => {
+    const q = searchQuery.toLowerCase();
+    const titleMatch = note.title?.toLowerCase().includes(q);
+    const contentMatch = note.content?.toLowerCase().includes(q);
+    const tagMatch = note.tags?.some((t) => t.toLowerCase().includes(q));
+    return titleMatch || contentMatch || tagMatch;
+  });
 
   return (
     <div className="app-container">
-      {/* Header */}
+      {/* App Header */}
       <header className="app-header">
         <div className="badge-wrapper">
           <span className="badge-pulse"></span>
-          <span>Day 2: Express REST APIs & MongoDB</span>
+          <span>Personal Notes App • Day 3 Dashboard</span>
         </div>
-        <h1 className="main-title">Personal Notes App</h1>
+        <h1 className="main-title">Notes Dashboard</h1>
         <p className="subtitle">
-          Built with React, Node.js, Express.js, and MongoDB with Mongoose.
+          Manage, pin, and organize your daily notes with real-time Express & MongoDB sync.
         </p>
       </header>
 
-      {/* Grid: Diagnostics & REST APIs */}
-      <div className="dashboard-grid">
-        {/* Verification Card */}
-        <section className="card">
-          <div className="card-title-row">
-            <h2 className="card-title">🔌 Connection Diagnostics</h2>
-            <span className="status-chip neutral">Live Monitor</span>
+      {/* Global Error Banner */}
+      {errorMessage && (
+        <div className="alert-banner alert-error">
+          <div className="alert-content">
+            <span className="alert-icon">⚠️</span>
+            <span>{errorMessage}</span>
           </div>
-          <div className="status-list">
-            <div className="status-item">
-              <span className="status-label">
-                <span>💻</span> Frontend (React + Vite)
-              </span>
-              <span className="status-chip success">● Running</span>
-            </div>
-
-            <div className="status-item">
-              <span className="status-label">
-                <span>⚡</span> Express Backend (Port 5000)
-              </span>
-              {serverStatus === 'idle' && (
-                <span className="status-chip neutral">Ready to test</span>
-              )}
-              {serverStatus === 'checking' && (
-                <span className="status-chip warning">Connecting...</span>
-              )}
-              {serverStatus === 'connected' && (
-                <span className="status-chip success">● Online</span>
-              )}
-              {serverStatus === 'error' && (
-                <span className="status-chip danger">● Offline</span>
-              )}
-            </div>
-
-            <div className="status-item">
-              <span className="status-label">
-                <span>🍃</span> MongoDB Database
-              </span>
-              {dbStatus === 'unknown' && (
-                <span className="status-chip neutral">Untested</span>
-              )}
-              {dbStatus === 'Connected' && (
-                <span className="status-chip success">● Connected</span>
-              )}
-              {dbStatus === 'Disconnected' && (
-                <span className="status-chip warning">▲ Disconnected</span>
-              )}
-              {dbStatus === 'offline' && (
-                <span className="status-chip danger">● Offline</span>
-              )}
-            </div>
-          </div>
-
           <button
-            className="btn-primary"
-            onClick={checkBackendConnection}
-            disabled={serverStatus === 'checking'}
+            className="btn-retry"
+            onClick={() => {
+              setErrorMessage('');
+              fetchNotes();
+            }}
           >
-            {serverStatus === 'checking' ? 'Pinging Server...' : 'Test Backend & DB Connection'}
+            Retry
           </button>
-
-          {apiResponse && (
-            <div className="response-box">
-              <code>{apiResponse}</code>
-            </div>
-          )}
-        </section>
-
-        {/* REST API Endpoints Card */}
-        <section className="card">
-          <div className="card-title-row">
-            <h2 className="card-title">📡 Day 2 REST APIs</h2>
-            <span className="status-chip success">Active</span>
-          </div>
-          <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-            Routes mounted on <code>/api/notes</code> with test user ownership.
-          </p>
-
-          <table className="schema-table">
-            <thead>
-              <tr>
-                <th>Method</th>
-                <th>Endpoint</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td style={{ color: '#60a5fa', fontWeight: 'bold' }}>GET</td>
-                <td><code>/api/notes</code></td>
-                <td>Retrieve all user notes</td>
-              </tr>
-              <tr>
-                <td style={{ color: '#34d399', fontWeight: 'bold' }}>POST</td>
-                <td><code>/api/notes</code></td>
-                <td>Create a new note</td>
-              </tr>
-              <tr>
-                <td style={{ color: '#fbbf24', fontWeight: 'bold' }}>PUT</td>
-                <td><code>/api/notes/:id</code></td>
-                <td>Update an existing note</td>
-              </tr>
-              <tr>
-                <td style={{ color: '#f87171', fontWeight: 'bold' }}>DELETE</td>
-                <td><code>/api/notes/:id</code></td>
-                <td>Delete note by ID</td>
-              </tr>
-            </tbody>
-          </table>
-
-          <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-            <button className="btn-primary" style={{ fontSize: '12px', padding: '8px' }} onClick={testFetchNotes}>
-              Test GET /api/notes
-            </button>
-            <button className="btn-primary" style={{ fontSize: '12px', padding: '8px', background: 'linear-gradient(135deg, #10b981, #059669)' }} onClick={testCreateNote}>
-              Test POST /api/notes
-            </button>
-          </div>
-
-          {notesList && (
-            <div className="response-box">
-              <code>{notesList}</code>
-            </div>
-          )}
-        </section>
-      </div>
-
-      {/* Quick Launch Commands Card */}
-      <section className="card">
-        <div className="card-title-row">
-          <h2 className="card-title">🚀 Quick Start Commands</h2>
-          <span className="status-chip neutral">Terminal Guide</span>
         </div>
-        <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
-          Run the backend and frontend in two separate terminal windows:
-        </p>
+      )}
 
-        <div className="dashboard-grid" style={{ marginTop: '16px', marginBottom: 0 }}>
-          <div className="cmd-box">
-            <div className="cmd-label">Backend (Express & MongoDB)</div>
-            <div className="cmd-line">
-              <span className="cmd-prompt">&gt;</span> cd backend
-            </div>
-            <div className="cmd-line" style={{ marginTop: '4px' }}>
-              <span className="cmd-prompt">&gt;</span> npm run dev
-            </div>
-          </div>
+      {/* Form Section */}
+      <section className="form-section">
+        <NoteForm
+          onSubmit={handleFormSubmit}
+          editingNote={editingNote}
+          onCancelEdit={() => setEditingNote(null)}
+          isSubmitting={isSubmitting}
+        />
+      </section>
 
-          <div className="cmd-box">
-            <div className="cmd-label">Frontend (React & Vite)</div>
-            <div className="cmd-line">
-              <span className="cmd-prompt">&gt;</span> cd frontend
-            </div>
-            <div className="cmd-line" style={{ marginTop: '4px' }}>
-              <span className="cmd-prompt">&gt;</span> npm run dev
-            </div>
-          </div>
+      {/* Notes Dashboard Toolbar */}
+      <section className="dashboard-toolbar">
+        <div className="toolbar-left">
+          <h2 className="section-title">
+            All Notes <span className="notes-count">({notes.length})</span>
+          </h2>
+        </div>
+        <div className="toolbar-right">
+          <input
+            type="text"
+            className="search-input"
+            placeholder="🔍 Search notes or tags..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
       </section>
+
+      {/* Notes Content State: Loading, Empty, or Cards Grid */}
+      {isLoading ? (
+        <div className="state-box">
+          <div className="spinner"></div>
+          <p className="state-text">Loading your notes from database...</p>
+        </div>
+      ) : notes.length === 0 ? (
+        <div className="state-box empty-state">
+          <div className="empty-icon">📝</div>
+          <h3 className="empty-title">No notes found</h3>
+          <p className="empty-subtitle">
+            Create your first note using the form above to get started!
+          </p>
+        </div>
+      ) : filteredNotes.length === 0 ? (
+        <div className="state-box empty-state">
+          <div className="empty-icon">🔍</div>
+          <h3 className="empty-title">No matching notes</h3>
+          <p className="empty-subtitle">
+            No notes matched &quot;{searchQuery}&quot;. Try a different search term.
+          </p>
+        </div>
+      ) : (
+        <div className="notes-grid">
+          {filteredNotes.map((note) => (
+            <NoteCard
+              key={note._id}
+              note={note}
+              onEdit={(noteToEdit) => {
+                setEditingNote(noteToEdit);
+                // Smooth scroll up to form
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              onDelete={handleDeleteNote}
+              onTogglePin={handleTogglePin}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -84,5 +84,5 @@ npm run dev
 ## 📅 Roadmap
 - [x] **Day 1:** Project scaffolding, Express + MongoDB connection, Note schema, and diagnostic dashboard.
 - [x] **Day 2:** Note CRUD API endpoints (Create, Read, Update, Delete) with validation and ownership simulation.
-- [ ] **Day 3:** User Authentication (JWT / bcrypt).
-- [ ] **Day 4:** Frontend UI for note management, pinning, and tag filtering.
+- [x] **Day 3:** React Notes Dashboard (Note cards, create/edit form, delete, pin toggle, fetch integration).
+- [ ] **Day 4:** User Authentication (JWT / bcrypt) & multi-user note ownership.
