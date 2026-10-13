@@ -70,8 +70,19 @@ npm run dev
 
 ---
 
+## 📡 REST API Reference (`/api/notes`)
+
+| Method | Endpoint | Description | Request Body (JSON) |
+|---|---|---|---|
+| `GET` | `/api/notes` | Get all notes for user | None |
+| `POST` | `/api/notes` | Create a new note | `{ "title": "...", "content": "...", "tags": [], "pinned": false }` |
+| `PUT` | `/api/notes/:id` | Update note by ID | `{ "title": "...", "content": "..." }` |
+| `DELETE` | `/api/notes/:id` | Delete note by ID | None |
+
+---
+
 ## 📅 Roadmap
 - [x] **Day 1:** Project scaffolding, Express + MongoDB connection, Note schema, and diagnostic dashboard.
-- [ ] **Day 2:** Note CRUD API endpoints (Create, Read, Update, Delete).
+- [x] **Day 2:** Note CRUD API endpoints (Create, Read, Update, Delete) with validation and ownership simulation.
 - [ ] **Day 3:** User Authentication (JWT / bcrypt).
 - [ ] **Day 4:** Frontend UI for note management, pinning, and tag filtering.

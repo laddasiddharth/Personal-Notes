@@ -7,6 +7,7 @@ const cors = require('cors');
 
 // Import the Note model to ensure schema registration
 const Note = require('./models/Note');
+const noteRoutes = require('./routes/noteRoutes');
 
 // 2. Initialize Express application
 const app = express();
@@ -14,6 +15,9 @@ const app = express();
 // 3. Middlewares
 app.use(cors()); // Allow requests from React frontend
 app.use(express.json()); // Allow server to receive JSON in request body
+
+// Mount Note API routes
+app.use('/api/notes', noteRoutes);
 
 // 4. Test Route to verify server and database status
 app.get('/', (req, res) => {

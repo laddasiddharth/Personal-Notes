@@ -5,6 +5,7 @@ function App() {
   const [serverStatus, setServerStatus] = useState('idle'); // 'idle' | 'checking' | 'connected' | 'error'
   const [dbStatus, setDbStatus] = useState('unknown');
   const [apiResponse, setApiResponse] = useState(null);
+  const [notesList, setNotesList] = useState(null);
 
   const checkBackendConnection = async () => {
     setServerStatus('checking');
@@ -24,13 +25,42 @@ function App() {
     }
   };
 
+  const testFetchNotes = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/notes');
+      const data = await response.json();
+      setNotesList(JSON.stringify(data, null, 2));
+    } catch (err) {
+      setNotesList(`Error calling GET /api/notes: ${err.message}`);
+    }
+  };
+
+  const testCreateNote = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: 'My First Test Note',
+          content: 'Created via Day 2 REST API endpoint test!',
+          tags: ['test', 'day2'],
+          pinned: true,
+        }),
+      });
+      const data = await response.json();
+      setNotesList(JSON.stringify(data, null, 2));
+    } catch (err) {
+      setNotesList(`Error calling POST /api/notes: ${err.message}`);
+    }
+  };
+
   return (
     <div className="app-container">
       {/* Header */}
       <header className="app-header">
         <div className="badge-wrapper">
           <span className="badge-pulse"></span>
-          <span>Day 1: Project Setup & Architecture</span>
+          <span>Day 2: Express REST APIs & MongoDB</span>
         </div>
         <h1 className="main-title">Personal Notes App</h1>
         <p className="subtitle">
@@ -38,7 +68,7 @@ function App() {
         </p>
       </header>
 
-      {/* Grid: Status Verification & Mongoose Schema */}
+      {/* Grid: Diagnostics & REST APIs */}
       <div className="dashboard-grid">
         {/* Verification Card */}
         <section className="card">
@@ -106,57 +136,62 @@ function App() {
           )}
         </section>
 
-        {/* Note Model Schema Card */}
+        {/* REST API Endpoints Card */}
         <section className="card">
           <div className="card-title-row">
-            <h2 className="card-title">📝 Note Model Schema</h2>
-            <span className="status-chip success">Mongoose Ready</span>
+            <h2 className="card-title">📡 Day 2 REST APIs</h2>
+            <span className="status-chip success">Active</span>
           </div>
           <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-            Defined in <code>backend/models/Note.js</code> with timestamps.
+            Routes mounted on <code>/api/notes</code> with test user ownership.
           </p>
 
           <table className="schema-table">
             <thead>
               <tr>
-                <th>Field</th>
-                <th>Type</th>
-                <th>Constraint</th>
+                <th>Method</th>
+                <th>Endpoint</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td className="field-name">title</td>
-                <td className="field-type">String</td>
-                <td>Required, Trimmed</td>
+                <td style={{ color: '#60a5fa', fontWeight: 'bold' }}>GET</td>
+                <td><code>/api/notes</code></td>
+                <td>Retrieve all user notes</td>
               </tr>
               <tr>
-                <td className="field-name">content</td>
-                <td className="field-type">String</td>
-                <td>Required</td>
+                <td style={{ color: '#34d399', fontWeight: 'bold' }}>POST</td>
+                <td><code>/api/notes</code></td>
+                <td>Create a new note</td>
               </tr>
               <tr>
-                <td className="field-name">tags</td>
-                <td className="field-type">Array&lt;String&gt;</td>
-                <td>Default: []</td>
+                <td style={{ color: '#fbbf24', fontWeight: 'bold' }}>PUT</td>
+                <td><code>/api/notes/:id</code></td>
+                <td>Update an existing note</td>
               </tr>
               <tr>
-                <td className="field-name">pinned</td>
-                <td className="field-type">Boolean</td>
-                <td>Default: false</td>
-              </tr>
-              <tr>
-                <td className="field-name">userId</td>
-                <td className="field-type">ObjectId (ref: User)</td>
-                <td>Owner Reference</td>
-              </tr>
-              <tr>
-                <td className="field-name">createdAt / updatedAt</td>
-                <td className="field-type">Date</td>
-                <td>Automatic Timestamps</td>
+                <td style={{ color: '#f87171', fontWeight: 'bold' }}>DELETE</td>
+                <td><code>/api/notes/:id</code></td>
+                <td>Delete note by ID</td>
               </tr>
             </tbody>
           </table>
+
+          <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+            <button className="btn-primary" style={{ fontSize: '12px', padding: '8px' }} onClick={testFetchNotes}>
+              Test GET /api/notes
+            </button>
+            <button className="btn-primary" style={{ fontSize: '12px', padding: '8px', background: 'linear-gradient(135deg, #10b981, #059669)' }} onClick={testCreateNote}>
+              Test POST /api/notes
+            </button>
+          </div>
+
+          {notesList && (
+            <div className="response-box">
+              <code>{notesList}</code>
+            </div>
+          )}
         </section>
       </div>
 
