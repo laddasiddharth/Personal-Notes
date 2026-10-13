@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Environment Variables & Secrets (CRITICAL: Never commit .env)
+.env
+.env*.local
+backend/.env
+backend/.env.*.local
+frontend/.env
+frontend/.env.*.local
+
+# Production build outputs
+dist/
+dist-ssr/
+frontend/dist/
+build/
+
+# Debug and runtime logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# IDE and Editor configurations
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
