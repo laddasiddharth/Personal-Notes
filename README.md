@@ -70,14 +70,24 @@ npm run dev
 
 ---
 
-## 📡 REST API Reference (`/api/notes`)
+## 🔐 Authentication API Reference (`/api/auth`)
 
 | Method | Endpoint | Description | Request Body (JSON) |
 |---|---|---|---|
-| `GET` | `/api/notes` | Get all notes for user | None |
-| `POST` | `/api/notes` | Create a new note | `{ "title": "...", "content": "...", "tags": [], "pinned": false }` |
-| `PUT` | `/api/notes/:id` | Update note by ID | `{ "title": "...", "content": "..." }` |
-| `DELETE` | `/api/notes/:id` | Delete note by ID | None |
+| `POST` | `/api/auth/register` | Register a new user | `{ "name": "...", "email": "...", "password": "..." }` |
+| `POST` | `/api/auth/login` | Login & receive JWT | `{ "email": "...", "password": "..." }` |
+| `GET` | `/api/auth/me` | Current user profile | None (`Bearer <token>` header required) |
+
+---
+
+## 📡 REST API Reference (`/api/notes`) *(All require `Authorization: Bearer <token>`)*
+
+| Method | Endpoint | Description | Request Body (JSON) |
+|---|---|---|---|
+| `GET` | `/api/notes` | Get notes owned by authenticated user | None |
+| `POST` | `/api/notes` | Create a note (userId derived from token) | `{ "title": "...", "content": "...", "tags": [], "pinned": false }` |
+| `PUT` | `/api/notes/:id` | Update note (enforces owner check) | `{ "title": "...", "content": "..." }` |
+| `DELETE` | `/api/notes/:id` | Delete note (enforces owner check) | None |
 
 ---
 
@@ -85,4 +95,4 @@ npm run dev
 - [x] **Day 1:** Project scaffolding, Express + MongoDB connection, Note schema, and diagnostic dashboard.
 - [x] **Day 2:** Note CRUD API endpoints (Create, Read, Update, Delete) with validation and ownership simulation.
 - [x] **Day 3:** React Notes Dashboard (Note cards, create/edit form, delete, pin toggle, fetch integration).
-- [ ] **Day 4:** User Authentication (JWT / bcrypt) & multi-user note ownership.
+- [x] **Day 4:** User Authentication (JWT / bcrypt) & user-specific note ownership and search.

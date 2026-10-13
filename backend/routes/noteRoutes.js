@@ -1,35 +1,41 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const Note = require('../models/Note');
+const authenticate = require('../middleware/auth');
 
 const router = express.Router();
 
-// 💡 Test user ID to simulate note ownership until full authentication (Day 3)
-const TEST_USER_ID = new mongoose.Types.ObjectId('65f1a2b3c4d5e6f7a8b9c0d1');
+// 🔒 Apply JWT authentication middleware to ALL note routes
+// This guarantees req.user is populated from the verified token
+router.use(authenticate);
 
-// ==========================================
+// ========================================================
 // 1. GET /api/notes
-// Retrieve all notes belonging to the test user
-// ==========================================
+// Retrieve notes belonging ONLY to the authenticated user
+// ========================================================
 router.get('/', async (req, res) => {
   try {
-    // Find notes for the test user; pinned notes appear first, then newest first
-    const notes = await Note.find({ userId: TEST_USER_ID }).sort({ pinned: -1, createdAt: -1 });
+    // Derive user ID strictly from the verified JWT (req.user.id)
+    const notes = await Note.find({ userId: req.user.id }).sort({
+      pinned: -1, // Pinned notes first
+      createdAt: -1, // Newest notes first
+    });
+
     res.status(200).json(notes);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch notes', details: err.message });
   }
 });
 
-// ==========================================
+// ========================================================
 // 2. POST /api/notes
-// Create a new note
-// ==========================================
+// Create a note owned by the authenticated user
+// ========================================================
 router.post('/', async (req, res) => {
   try {
     const { title, content, tags, pinned } = req.body;
 
-    // Validation: Title and content are required
+    // Validation
     if (!title || !title.trim()) {
       return res.status(400).json({ error: 'Title is required' });
     }
@@ -42,7 +48,7 @@ router.post('/', async (req, res) => {
       content: content.trim(),
       tags: Array.isArray(tags) ? tags : [],
       pinned: typeof pinned === 'boolean' ? pinned : false,
-      userId: TEST_USER_ID, // Associate with test user
+      userId: req.user.id, // Strictly derived from JWT
     });
 
     const savedNote = await newNote.save();
@@ -52,15 +58,15 @@ router.post('/', async (req, res) => {
   }
 });
 
-// ==========================================
+// ========================================================
 // 3. PUT /api/notes/:id
-// Update an existing note by its ID
-// ==========================================
+// Update an existing note (strictly verifying ownership)
+// ========================================================
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Validation: Check if id is a valid 24-character hexadecimal ObjectId
+    // Validate MongoDB ObjectId format
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ error: 'Invalid Note ID format' });
     }
@@ -70,9 +76,11 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Note not found' });
     }
 
-    // Ownership check: Verify note belongs to test user
-    if (note.userId && note.userId.toString() !== TEST_USER_ID.toString()) {
-      return res.status(403).json({ error: 'Forbidden: You do not own this note' });
+    // Ownership Verification: Ensure the note belongs to the user in the JWT
+    if (note.userId.toString() !== req.user.id.toString()) {
+      return res.status(403).json({
+        error: 'Forbidden: You do not have permission to edit this note.',
+      });
     }
 
     const { title, content, tags, pinned } = req.body;
@@ -106,15 +114,14 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// ==========================================
+// ========================================================
 // 4. DELETE /api/notes/:id
-// Delete a note by its ID
-// ==========================================
+// Delete a note (strictly verifying ownership)
+// ========================================================
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Validation: Check if id is a valid ObjectId
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ error: 'Invalid Note ID format' });
     }
@@ -124,9 +131,11 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Note not found' });
     }
 
-    // Ownership check: Verify note belongs to test user
-    if (note.userId && note.userId.toString() !== TEST_USER_ID.toString()) {
-      return res.status(403).json({ error: 'Forbidden: You do not own this note' });
+    // Ownership Verification: Ensure the note belongs to the user in the JWT
+    if (note.userId.toString() !== req.user.id.toString()) {
+      return res.status(403).json({
+        error: 'Forbidden: You do not have permission to delete this note.',
+      });
     }
 
     await Note.findByIdAndDelete(id);

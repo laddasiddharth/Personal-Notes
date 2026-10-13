@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import NoteForm from './components/NoteForm';
 import NoteCard from './components/NoteCard';
+import AuthForm from './components/AuthForm';
 import './App.css';
 
 // Base URL for the Express backend REST API
@@ -8,34 +9,53 @@ const API_URL = 'http://localhost:5000/api/notes';
 
 function App() {
   // ----------------------------------------------------
-  // React State Management
+  // Authentication State
   // ----------------------------------------------------
-  // 1. notes: Array holding our list of notes from MongoDB
+  const [token, setToken] = useState(() => localStorage.getItem('notes_token') || '');
+  const [currentUser, setCurrentUser] = useState(() => {
+    const saved = localStorage.getItem('notes_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  // ----------------------------------------------------
+  // Notes & UI State
+  // ----------------------------------------------------
   const [notes, setNotes] = useState([]);
-
-  // 2. isLoading: Boolean to show a loading message/spinner
-  const [isLoading, setIsLoading] = useState(true);
-
-  // 3. errorMessage: String to show any server or network error
+  const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-
-  // 4. editingNote: The note currently being edited (null when creating)
   const [editingNote, setEditingNote] = useState(null);
-
-  // 5. isSubmitting: Boolean to disable buttons while saving
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // 6. searchQuery: String to filter notes by title, content, or tag
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchTitle, setSearchTitle] = useState('');
 
   // ----------------------------------------------------
-  // Fetch Request 1: GET /api/notes (Retrieve notes on page load)
+  // Helper: Common Auth Headers
   // ----------------------------------------------------
-  const fetchNotes = async () => {
+  const getAuthHeaders = useCallback(() => {
+    return {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    };
+  }, [token]);
+
+  // ----------------------------------------------------
+  // Fetch Request 1: GET /api/notes (Protected)
+  // ----------------------------------------------------
+  const fetchNotes = useCallback(async () => {
+    if (!token) return;
+
     setIsLoading(true);
     setErrorMessage('');
     try {
-      const response = await fetch(API_URL);
+      const response = await fetch(API_URL, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.status === 401) {
+        handleLogout();
+        throw new Error('Your session expired. Please sign in again.');
+      }
 
       if (!response.ok) {
         throw new Error(`Server error: ${response.status} ${response.statusText}`);
@@ -45,21 +65,40 @@ function App() {
       setNotes(data);
     } catch (err) {
       console.error('Fetch notes error:', err);
-      setErrorMessage(
-        'Could not load notes. Please check that your Express server and MongoDB are running on http://localhost:5000.'
-      );
+      setErrorMessage(err.message);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [token]);
 
-  // Run fetchNotes once when the component first mounts
+  // Fetch notes on initial login or mount
   useEffect(() => {
-    fetchNotes();
-  }, []);
+    if (token) {
+      fetchNotes();
+    }
+  }, [token, fetchNotes]);
 
   // ----------------------------------------------------
-  // Fetch Request 2 & 3: POST /api/notes and PUT /api/notes/:id
+  // Handle Auth Success & Logout
+  // ----------------------------------------------------
+  const handleAuthSuccess = (newToken, newUser) => {
+    setToken(newToken);
+    setCurrentUser(newUser);
+    localStorage.setItem('notes_token', newToken);
+    localStorage.setItem('notes_user', JSON.stringify(newUser));
+  };
+
+  const handleLogout = () => {
+    setToken('');
+    setCurrentUser(null);
+    setNotes([]);
+    setEditingNote(null);
+    localStorage.removeItem('notes_token');
+    localStorage.removeItem('notes_user');
+  };
+
+  // ----------------------------------------------------
+  // Fetch Request 2 & 3: POST & PUT /api/notes (Protected)
   // ----------------------------------------------------
   const handleFormSubmit = async (formData) => {
     setIsSubmitting(true);
@@ -70,9 +109,14 @@ function App() {
         // --- EDIT MODE (PUT) ---
         const response = await fetch(`${API_URL}/${editingNote._id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(),
           body: JSON.stringify(formData),
         });
+
+        if (response.status === 401) {
+          handleLogout();
+          throw new Error('Session expired. Please sign in again.');
+        }
 
         if (!response.ok) {
           const errorData = await response.json();
@@ -81,20 +125,32 @@ function App() {
 
         const updatedNote = await response.json();
 
-        // Update the note in local state
-        setNotes((prevNotes) =>
-          prevNotes.map((n) => (n._id === updatedNote._id ? updatedNote : n))
-        );
+        // Update in state & maintain pinned sort order
+        setNotes((prevNotes) => {
+          const updated = prevNotes.map((n) =>
+            n._id === updatedNote._id ? updatedNote : n
+          );
+          return updated.sort((a, b) => {
+            if (a.pinned === b.pinned) {
+              return new Date(b.createdAt) - new Date(a.createdAt);
+            }
+            return a.pinned ? -1 : 1;
+          });
+        });
 
-        // Exit edit mode
         setEditingNote(null);
       } else {
         // --- CREATE MODE (POST) ---
         const response = await fetch(API_URL, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(),
           body: JSON.stringify(formData),
         });
+
+        if (response.status === 401) {
+          handleLogout();
+          throw new Error('Session expired. Please sign in again.');
+        }
 
         if (!response.ok) {
           const errorData = await response.json();
@@ -103,7 +159,6 @@ function App() {
 
         const createdNote = await response.json();
 
-        // Add the newly created note to local state (pinned notes at top)
         setNotes((prevNotes) => {
           if (createdNote.pinned) {
             return [createdNote, ...prevNotes];
@@ -120,24 +175,28 @@ function App() {
   };
 
   // ----------------------------------------------------
-  // Fetch Request 4: DELETE /api/notes/:id
+  // Fetch Request 4: DELETE /api/notes/:id (Protected)
   // ----------------------------------------------------
   const handleDeleteNote = async (id) => {
     setErrorMessage('');
     try {
       const response = await fetch(`${API_URL}/${id}`, {
         method: 'DELETE',
+        headers: getAuthHeaders(),
       });
+
+      if (response.status === 401) {
+        handleLogout();
+        throw new Error('Session expired. Please sign in again.');
+      }
 
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to delete note');
       }
 
-      // Remove the deleted note from local state
       setNotes((prevNotes) => prevNotes.filter((note) => note._id !== id));
 
-      // If the deleted note was currently in edit mode, cancel edit mode
       if (editingNote && editingNote._id === id) {
         setEditingNote(null);
       }
@@ -154,17 +213,14 @@ function App() {
     try {
       const response = await fetch(`${API_URL}/${note._id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ pinned: !note.pinned }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to toggle pin');
-      }
+      if (!response.ok) throw new Error('Failed to toggle pin');
 
       const updatedNote = await response.json();
 
-      // Update state and keep pinned notes sorted at top
       setNotes((prevNotes) => {
         const updated = prevNotes.map((n) =>
           n._id === updatedNote._id ? updatedNote : n
@@ -183,28 +239,43 @@ function App() {
   };
 
   // ----------------------------------------------------
-  // Filter notes by search query
+  // Search by title (and tags)
   // ----------------------------------------------------
   const filteredNotes = notes.filter((note) => {
-    const q = searchQuery.toLowerCase();
-    const titleMatch = note.title?.toLowerCase().includes(q);
-    const contentMatch = note.content?.toLowerCase().includes(q);
-    const tagMatch = note.tags?.some((t) => t.toLowerCase().includes(q));
-    return titleMatch || contentMatch || tagMatch;
+    const q = searchTitle.toLowerCase().trim();
+    if (!q) return true;
+    const titleMatches = note.title?.toLowerCase().includes(q);
+    const tagMatches = note.tags?.some((t) => t.toLowerCase().includes(q));
+    return titleMatches || tagMatches;
   });
 
   return (
     <div className="app-container">
-      {/* App Header */}
+      {/* Top Header */}
       <header className="app-header">
         <div className="badge-wrapper">
           <span className="badge-pulse"></span>
-          <span>Personal Notes App • Day 3 Dashboard</span>
+          <span>Day 4: JWT Authentication & Note Ownership</span>
         </div>
-        <h1 className="main-title">Notes Dashboard</h1>
+        <h1 className="main-title">Personal Notes App</h1>
         <p className="subtitle">
-          Manage, pin, and organize your daily notes with real-time Express & MongoDB sync.
+          Secure private notes protected with bcrypt password hashing and JWT authentication.
         </p>
+
+        {/* User Status Bar when Logged In */}
+        {currentUser && (
+          <div className="user-bar">
+            <div className="user-info">
+              <span className="user-avatar">👤</span>
+              <span className="user-name">
+                Logged in as <strong>{currentUser.name}</strong> ({currentUser.email})
+              </span>
+            </div>
+            <button className="btn-logout" onClick={handleLogout}>
+              Log Out 🚪
+            </button>
+          </div>
+        )}
       </header>
 
       {/* Global Error Banner */}
@@ -214,84 +285,87 @@ function App() {
             <span className="alert-icon">⚠️</span>
             <span>{errorMessage}</span>
           </div>
-          <button
-            className="btn-retry"
-            onClick={() => {
-              setErrorMessage('');
-              fetchNotes();
-            }}
-          >
+          <button className="btn-retry" onClick={fetchNotes}>
             Retry
           </button>
         </div>
       )}
 
-      {/* Form Section */}
-      <section className="form-section">
-        <NoteForm
-          onSubmit={handleFormSubmit}
-          editingNote={editingNote}
-          onCancelEdit={() => setEditingNote(null)}
-          isSubmitting={isSubmitting}
-        />
-      </section>
-
-      {/* Notes Dashboard Toolbar */}
-      <section className="dashboard-toolbar">
-        <div className="toolbar-left">
-          <h2 className="section-title">
-            All Notes <span className="notes-count">({notes.length})</span>
-          </h2>
-        </div>
-        <div className="toolbar-right">
-          <input
-            type="text"
-            className="search-input"
-            placeholder="🔍 Search notes or tags..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-      </section>
-
-      {/* Notes Content State: Loading, Empty, or Cards Grid */}
-      {isLoading ? (
-        <div className="state-box">
-          <div className="spinner"></div>
-          <p className="state-text">Loading your notes from database...</p>
-        </div>
-      ) : notes.length === 0 ? (
-        <div className="state-box empty-state">
-          <div className="empty-icon">📝</div>
-          <h3 className="empty-title">No notes found</h3>
-          <p className="empty-subtitle">
-            Create your first note using the form above to get started!
-          </p>
-        </div>
-      ) : filteredNotes.length === 0 ? (
-        <div className="state-box empty-state">
-          <div className="empty-icon">🔍</div>
-          <h3 className="empty-title">No matching notes</h3>
-          <p className="empty-subtitle">
-            No notes matched &quot;{searchQuery}&quot;. Try a different search term.
-          </p>
+      {/* If NOT logged in: Show Auth Form */}
+      {!currentUser ? (
+        <div className="auth-wrapper">
+          <AuthForm onAuthSuccess={handleAuthSuccess} />
         </div>
       ) : (
-        <div className="notes-grid">
-          {filteredNotes.map((note) => (
-            <NoteCard
-              key={note._id}
-              note={note}
-              onEdit={(noteToEdit) => {
-                setEditingNote(noteToEdit);
-                // Smooth scroll up to form
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              onDelete={handleDeleteNote}
-              onTogglePin={handleTogglePin}
+        /* If logged in: Show Notes Form & Dashboard */
+        <>
+          {/* Form to create/edit notes */}
+          <section className="form-section">
+            <NoteForm
+              onSubmit={handleFormSubmit}
+              editingNote={editingNote}
+              onCancelEdit={() => setEditingNote(null)}
+              isSubmitting={isSubmitting}
             />
-          ))}
-        </div>
+          </section>
+
+          {/* Search by Title & Toolbar */}
+          <section className="dashboard-toolbar">
+            <div className="toolbar-left">
+              <h2 className="section-title">
+                Your Notes <span className="notes-count">({notes.length})</span>
+              </h2>
+            </div>
+            <div className="toolbar-right">
+              <input
+                type="text"
+                className="search-input"
+                placeholder="🔍 Search notes by title or tag..."
+                value={searchTitle}
+                onChange={(e) => setSearchTitle(e.target.value)}
+              />
+            </div>
+          </section>
+
+          {/* Notes List / States */}
+          {isLoading ? (
+            <div className="state-box">
+              <div className="spinner"></div>
+              <p className="state-text">Loading your notes from database...</p>
+            </div>
+          ) : notes.length === 0 ? (
+            <div className="state-box empty-state">
+              <div className="empty-icon">📝</div>
+              <h3 className="empty-title">You have no notes yet</h3>
+              <p className="empty-subtitle">
+                Write your first note in the form above! Only you can see and manage your notes.
+              </p>
+            </div>
+          ) : filteredNotes.length === 0 ? (
+            <div className="state-box empty-state">
+              <div className="empty-icon">🔍</div>
+              <h3 className="empty-title">No notes found</h3>
+              <p className="empty-subtitle">
+                No notes match &quot;{searchTitle}&quot;.
+              </p>
+            </div>
+          ) : (
+            <div className="notes-grid">
+              {filteredNotes.map((note) => (
+                <NoteCard
+                  key={note._id}
+                  note={note}
+                  onEdit={(noteToEdit) => {
+                    setEditingNote(noteToEdit);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  onDelete={handleDeleteNote}
+                  onTogglePin={handleTogglePin}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

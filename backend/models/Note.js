@@ -23,8 +23,7 @@ const noteSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      // Note: Not set as strictly required yet since auth is planned for later days
-      required: false,
+      required: [true, 'Note owner userId is required'],
     },
   },
   {
