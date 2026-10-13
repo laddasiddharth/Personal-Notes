@@ -77,7 +77,7 @@ router.put('/:id', async (req, res) => {
     }
 
     // Ownership Verification: Ensure the note belongs to the user in the JWT
-    if (note.userId.toString() !== req.user.id.toString()) {
+    if (!note.userId || note.userId.toString() !== req.user.id.toString()) {
       return res.status(403).json({
         error: 'Forbidden: You do not have permission to edit this note.',
       });
@@ -132,7 +132,7 @@ router.delete('/:id', async (req, res) => {
     }
 
     // Ownership Verification: Ensure the note belongs to the user in the JWT
-    if (note.userId.toString() !== req.user.id.toString()) {
+    if (!note.userId || note.userId.toString() !== req.user.id.toString()) {
       return res.status(403).json({
         error: 'Forbidden: You do not have permission to delete this note.',
       });

@@ -38,9 +38,10 @@ function AuthForm({ onAuthSuccess }) {
 
     setIsSubmitting(true);
 
+    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     const endpoint = isLoginMode
-      ? 'http://localhost:5000/api/auth/login'
-      : 'http://localhost:5000/api/auth/register';
+      ? `${API_BASE}/api/auth/login`
+      : `${API_BASE}/api/auth/register`;
 
     const payload = isLoginMode
       ? { email: email.trim(), password }
