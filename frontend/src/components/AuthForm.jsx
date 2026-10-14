@@ -97,7 +97,7 @@ function AuthForm({ onAuthSuccess }) {
 
       <div className="auth-body">
         <h2 className="auth-title">
-          {isLoginMode ? 'Welcome Back 👋' : 'Create an Account 🚀'}
+          {isLoginMode ? 'Welcome back' : 'Create an account'}
         </h2>
         <p className="auth-subtitle">
           {isLoginMode
@@ -165,8 +165,8 @@ function AuthForm({ onAuthSuccess }) {
             {isSubmitting
               ? 'Please wait...'
               : isLoginMode
-              ? 'Sign In to Notes'
-              : 'Register & Continue'}
+              ? 'Sign in'
+              : 'Create account'}
           </button>
         </form>
       </div>

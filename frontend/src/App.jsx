@@ -254,10 +254,10 @@ function App() {
     <div className="app-container">
       {/* Top Header */}
       <header className="app-header">
-        <div className="badge-wrapper">
+        {/* <div className="badge-wrapper">
           <span className="badge-pulse"></span>
           <span>Day 4: JWT Authentication & Note Ownership</span>
-        </div>
+        </div> */}
         <h1 className="main-title">Personal Notes App</h1>
         <p className="subtitle">
           Secure private notes protected with bcrypt password hashing and JWT authentication.
@@ -267,13 +267,15 @@ function App() {
         {currentUser && (
           <div className="user-bar">
             <div className="user-info">
-              <span className="user-avatar">👤</span>
+              <span className="user-avatar">
+                {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+              </span>
               <span className="user-name">
                 Logged in as <strong>{currentUser.name}</strong> ({currentUser.email})
               </span>
             </div>
             <button className="btn-logout" onClick={handleLogout}>
-              Log Out 🚪
+              Log out
             </button>
           </div>
         )}
@@ -321,7 +323,7 @@ function App() {
               <input
                 type="text"
                 className="search-input"
-                placeholder="🔍 Search notes by title or tag..."
+                placeholder="Search notes by title or tag..."
                 value={searchTitle}
                 onChange={(e) => setSearchTitle(e.target.value)}
               />
