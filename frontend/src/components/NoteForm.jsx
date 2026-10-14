@@ -76,7 +76,7 @@ function NoteForm({ onSubmit, editingNote, onCancelEdit, isSubmitting }) {
     <form className="note-form-card" onSubmit={handleSubmit}>
       <div className="form-header">
         <h3 className="form-title">
-          {editingNote ? '✏️ Edit Note' : '➕ Create a New Note'}
+          {editingNote ? 'Edit Note' : 'Create a New Note'}
         </h3>
         {editingNote && (
           <button
