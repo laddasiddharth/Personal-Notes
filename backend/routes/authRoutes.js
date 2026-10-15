@@ -6,7 +6,9 @@ const authenticate = require('../middleware/auth');
 
 const router = express.Router();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_key';
+const getJwtSecret = () => process.env.JWT_SECRET || 'fallback_secret_key';
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // ========================================================
 // 1. POST /api/auth/register
@@ -16,20 +18,30 @@ router.post('/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    // Validation
-    if (!name || !name.trim()) {
+    // Type validation
+    if (typeof name !== 'string' || !name.trim()) {
       return res.status(400).json({ error: 'Name is required' });
     }
-    if (!email || !email.trim()) {
+    if (name.trim().length > 100) {
+      return res.status(400).json({ error: 'Name cannot exceed 100 characters' });
+    }
+
+    if (typeof email !== 'string' || !email.trim()) {
       return res.status(400).json({ error: 'Email is required' });
     }
-    if (!password || password.length < 6) {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (normalizedEmail.length > 254 || !EMAIL_REGEX.test(normalizedEmail)) {
+      return res.status(400).json({ error: 'Please enter a valid email address' });
+    }
+
+    if (typeof password !== 'string' || password.length < 6) {
       return res.status(400).json({
         error: 'Password is required and must be at least 6 characters long',
       });
     }
-
-    const normalizedEmail = email.trim().toLowerCase();
+    if (password.length > 128) {
+      return res.status(400).json({ error: 'Password cannot exceed 128 characters' });
+    }
 
     // Check if user already exists
     const existingUser = await User.findOne({ email: normalizedEmail });
@@ -53,7 +65,7 @@ router.post('/register', async (req, res) => {
     // Generate JWT token containing user id, email, and name
     const token = jwt.sign(
       { id: savedUser._id, email: savedUser.email, name: savedUser.name },
-      JWT_SECRET,
+      getJwtSecret(),
       { expiresIn: '7d' }
     );
 
@@ -67,7 +79,15 @@ router.post('/register', async (req, res) => {
       },
     });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to register user', details: err.message });
+    // Handle MongoDB duplicate key error gracefully
+    if (err.code === 11000) {
+      return res.status(400).json({ error: 'An account with this email already exists' });
+    }
+    console.error('Register error:', err);
+    res.status(500).json({
+      error: 'Failed to register user',
+      ...(process.env.NODE_ENV !== 'production' && { details: err.message }),
+    });
   }
 });
 
@@ -79,11 +99,11 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Validation
-    if (!email || !email.trim()) {
+    // Type and existence validation
+    if (typeof email !== 'string' || !email.trim()) {
       return res.status(400).json({ error: 'Email is required' });
     }
-    if (!password) {
+    if (typeof password !== 'string' || !password) {
       return res.status(400).json({ error: 'Password is required' });
     }
 
@@ -104,7 +124,7 @@ router.post('/login', async (req, res) => {
     // Generate JWT token
     const token = jwt.sign(
       { id: user._id, email: user.email, name: user.name },
-      JWT_SECRET,
+      getJwtSecret(),
       { expiresIn: '7d' }
     );
 
@@ -118,7 +138,11 @@ router.post('/login', async (req, res) => {
       },
     });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to log in', details: err.message });
+    console.error('Login error:', err);
+    res.status(500).json({
+      error: 'Failed to log in',
+      ...(process.env.NODE_ENV !== 'production' && { details: err.message }),
+    });
   }
 });
 
@@ -134,7 +158,11 @@ router.get('/me', authenticate, async (req, res) => {
     }
     res.status(200).json({ user });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to retrieve profile', details: err.message });
+    console.error('Get profile error:', err);
+    res.status(500).json({
+      error: 'Failed to retrieve profile',
+      ...(process.env.NODE_ENV !== 'production' && { details: err.message }),
+    });
   }
 });
 

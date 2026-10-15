@@ -47,13 +47,23 @@ function NoteForm({ onSubmit, editingNote, onCancelEdit, isSubmitting }) {
       return;
     }
 
+    if (title.trim().length > 200) {
+      setFormError('Title cannot exceed 200 characters.');
+      return;
+    }
+    if (content.trim().length > 20000) {
+      setFormError('Content cannot exceed 20,000 characters.');
+      return;
+    }
+
     setFormError('');
 
-    // Parse comma-separated tags into an array of clean strings
-    const tagsArray = tagsInput
+    // Parse comma-separated tags into a deduplicated array of clean strings
+    const rawTags = tagsInput
       .split(',')
-      .map((t) => t.trim())
+      .map((t) => t.trim().slice(0, 50))
       .filter((t) => t.length > 0);
+    const tagsArray = [...new Set(rawTags)].slice(0, 30);
 
     // Call parent handler with formatted data
     onSubmit({
@@ -103,6 +113,7 @@ function NoteForm({ onSubmit, editingNote, onCancelEdit, isSubmitting }) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           disabled={isSubmitting}
+          maxLength={200}
         />
       </div>
 
@@ -118,6 +129,7 @@ function NoteForm({ onSubmit, editingNote, onCancelEdit, isSubmitting }) {
           value={content}
           onChange={(e) => setContent(e.target.value)}
           disabled={isSubmitting}
+          maxLength={20000}
         />
       </div>
 

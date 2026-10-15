@@ -11,12 +11,23 @@ const API_URL = `${API_BASE}/api/notes`;
 
 function App() {
   // ----------------------------------------------------
-  // Authentication State
+  // Authentication State (with try/catch against corrupted storage)
   // ----------------------------------------------------
-  const [token, setToken] = useState(() => localStorage.getItem('notes_token') || '');
+  const [token, setToken] = useState(() => {
+    try {
+      return localStorage.getItem('notes_token') || '';
+    } catch {
+      return '';
+    }
+  });
+
   const [currentUser, setCurrentUser] = useState(() => {
-    const saved = localStorage.getItem('notes_user');
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem('notes_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
   });
 
   // ----------------------------------------------------
@@ -28,6 +39,47 @@ function App() {
   const [editingNote, setEditingNote] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTitle, setSearchTitle] = useState('');
+
+  // ----------------------------------------------------
+  // Helper: Standardized Notes Sort Order (Pinned first, then Newest first)
+  // ----------------------------------------------------
+  const sortNotesList = (notesList) => {
+    return [...notesList].sort((a, b) => {
+      const aPinned = Boolean(a.pinned);
+      const bPinned = Boolean(b.pinned);
+      if (aPinned === bPinned) {
+        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+      }
+      return aPinned ? -1 : 1;
+    });
+  };
+
+  // ----------------------------------------------------
+  // Handle Auth Success & Logout (Hoisted with useCallback)
+  // ----------------------------------------------------
+  const handleAuthSuccess = (newToken, newUser) => {
+    setToken(newToken);
+    setCurrentUser(newUser);
+    try {
+      localStorage.setItem('notes_token', newToken);
+      localStorage.setItem('notes_user', JSON.stringify(newUser));
+    } catch (err) {
+      console.error('Storage write error:', err);
+    }
+  };
+
+  const handleLogout = useCallback(() => {
+    setToken('');
+    setCurrentUser(null);
+    setNotes([]);
+    setEditingNote(null);
+    try {
+      localStorage.removeItem('notes_token');
+      localStorage.removeItem('notes_user');
+    } catch (err) {
+      console.error('Storage clear error:', err);
+    }
+  }, []);
 
   // ----------------------------------------------------
   // Helper: Common Auth Headers
@@ -59,19 +111,24 @@ function App() {
         throw new Error('Your session expired. Please sign in again.');
       }
 
+      const data = await response.json().catch(() => null);
+
       if (!response.ok) {
-        throw new Error(`Server error: ${response.status} ${response.statusText}`);
+        throw new Error((data && data.error) || `Server error (${response.status} ${response.statusText})`);
       }
 
-      const data = await response.json();
-      setNotes(data);
+      if (!Array.isArray(data)) {
+        throw new Error('Unexpected data format received from server.');
+      }
+
+      setNotes(sortNotesList(data));
     } catch (err) {
       console.error('Fetch notes error:', err);
-      setErrorMessage(err.message);
+      setErrorMessage(err.message || 'Failed to load notes');
     } finally {
       setIsLoading(false);
     }
-  }, [token]);
+  }, [token, handleLogout]);
 
   // Fetch notes on initial login or mount
   useEffect(() => {
@@ -79,25 +136,6 @@ function App() {
       fetchNotes();
     }
   }, [token, fetchNotes]);
-
-  // ----------------------------------------------------
-  // Handle Auth Success & Logout
-  // ----------------------------------------------------
-  const handleAuthSuccess = (newToken, newUser) => {
-    setToken(newToken);
-    setCurrentUser(newUser);
-    localStorage.setItem('notes_token', newToken);
-    localStorage.setItem('notes_user', JSON.stringify(newUser));
-  };
-
-  const handleLogout = () => {
-    setToken('');
-    setCurrentUser(null);
-    setNotes([]);
-    setEditingNote(null);
-    localStorage.removeItem('notes_token');
-    localStorage.removeItem('notes_user');
-  };
 
   // ----------------------------------------------------
   // Fetch Request 2 & 3: POST & PUT /api/notes (Protected)
@@ -120,24 +158,20 @@ function App() {
           throw new Error('Session expired. Please sign in again.');
         }
 
+        const data = await response.json().catch(() => null);
+
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to update note');
+          throw new Error((data && data.error) || `Failed to update note (${response.status})`);
         }
 
-        const updatedNote = await response.json();
+        const updatedNote = data;
 
         // Update in state & maintain pinned sort order
         setNotes((prevNotes) => {
           const updated = prevNotes.map((n) =>
             n._id === updatedNote._id ? updatedNote : n
           );
-          return updated.sort((a, b) => {
-            if (a.pinned === b.pinned) {
-              return new Date(b.createdAt) - new Date(a.createdAt);
-            }
-            return a.pinned ? -1 : 1;
-          });
+          return sortNotesList(updated);
         });
 
         setEditingNote(null);
@@ -154,23 +188,20 @@ function App() {
           throw new Error('Session expired. Please sign in again.');
         }
 
+        const data = await response.json().catch(() => null);
+
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to create note');
+          throw new Error((data && data.error) || `Failed to create note (${response.status})`);
         }
 
-        const createdNote = await response.json();
+        const createdNote = data;
 
-        setNotes((prevNotes) => {
-          if (createdNote.pinned) {
-            return [createdNote, ...prevNotes];
-          }
-          return [...prevNotes, createdNote];
-        });
+        // Insert new note and sort immediately so it appears at top of its section
+        setNotes((prevNotes) => sortNotesList([createdNote, ...prevNotes]));
       }
     } catch (err) {
       console.error('Save note error:', err);
-      setErrorMessage(err.message);
+      setErrorMessage(err.message || 'Failed to save note');
     } finally {
       setIsSubmitting(false);
     }
@@ -192,9 +223,10 @@ function App() {
         throw new Error('Session expired. Please sign in again.');
       }
 
+      const data = await response.json().catch(() => null);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete note');
+        throw new Error((data && data.error) || `Failed to delete note (${response.status})`);
       }
 
       setNotes((prevNotes) => prevNotes.filter((note) => note._id !== id));
@@ -204,7 +236,7 @@ function App() {
       }
     } catch (err) {
       console.error('Delete note error:', err);
-      setErrorMessage(err.message);
+      setErrorMessage(err.message || 'Failed to delete note');
     }
   };
 
@@ -219,24 +251,28 @@ function App() {
         body: JSON.stringify({ pinned: !note.pinned }),
       });
 
-      if (!response.ok) throw new Error('Failed to toggle pin');
+      if (response.status === 401) {
+        handleLogout();
+        throw new Error('Session expired. Please sign in again.');
+      }
 
-      const updatedNote = await response.json();
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || !data) {
+        throw new Error((data && data.error) || `Failed to toggle pin (${response.status})`);
+      }
+
+      const updatedNote = data;
 
       setNotes((prevNotes) => {
         const updated = prevNotes.map((n) =>
           n._id === updatedNote._id ? updatedNote : n
         );
-        return updated.sort((a, b) => {
-          if (a.pinned === b.pinned) {
-            return new Date(b.createdAt) - new Date(a.createdAt);
-          }
-          return a.pinned ? -1 : 1;
-        });
+        return sortNotesList(updated);
       });
     } catch (err) {
       console.error('Pin toggle error:', err);
-      setErrorMessage(err.message);
+      setErrorMessage(err.message || 'Failed to toggle pin');
     }
   };
 
