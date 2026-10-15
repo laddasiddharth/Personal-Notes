@@ -5,7 +5,8 @@ import AuthForm from './components/AuthForm';
 import './App.css';
 
 // Base URL for the Express backend REST API (supports production deployment via VITE_API_URL)
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const rawApiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_BASE = rawApiBase.replace(/\/+$/, '');
 const API_URL = `${API_BASE}/api/notes`;
 
 function App() {
