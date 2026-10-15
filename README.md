@@ -82,11 +82,6 @@ Personal-Notes/
 │   ├── package.json           # Frontend dependencies, Vite & oxlint scripts
 │   ├── vercel.json            # Vercel SPA rewrite routing rules
 │   └── vite.config.js         # Vite bundler configuration
-<<<<<<< HEAD
-=======
-├── PROJECT_FILES_REPORT.md    # Detailed line-by-line explanation of every file
-├── PROJECT_NOTES.md           # Architecture manual & 75 interview/exam Q&As
->>>>>>> 322b5f251554fd53f28cbabec678b91327ab97ed
 └── README.md                  # Project overview & documentation (this file)
 ```
 
