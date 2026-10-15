@@ -82,8 +82,6 @@ Personal-Notes/
 │   ├── package.json           # Frontend dependencies, Vite & oxlint scripts
 │   ├── vercel.json            # Vercel SPA rewrite routing rules
 │   └── vite.config.js         # Vite bundler configuration
-├── PROJECT_FILES_REPORT.md    # Detailed line-by-line explanation of every file
-├── PROJECT_NOTES.md           # Architecture manual & 75 interview/exam Q&As
 └── README.md                  # Project overview & documentation (this file)
 ```
 
@@ -244,12 +242,6 @@ Render's free tier spins down after 15 minutes of inactivity. To eliminate cold 
 2. Set the target URL to `https://personal-notes-8mgo.onrender.com/`.
 3. Set the schedule to **Every 10 minutes** using HTTP `GET`.
 
----
-
-## Documentation References
-
-- **[PROJECT_FILES_REPORT.md](file:///c:/Users/siddh/Desktop/College/SEM%207/FSF/MiniProject/PROJECT_FILES_REPORT.md):** Complete code guide explaining the responsibilities of every file.
-- **[PROJECT_NOTES.md](file:///c:/Users/siddh/Desktop/College/SEM%207/FSF/MiniProject/PROJECT_NOTES.md):** Comprehensive project manual containing 75 examination and interview technical Q&As.
 
 ---
 
