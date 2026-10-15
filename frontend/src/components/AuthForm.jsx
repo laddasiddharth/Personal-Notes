@@ -38,7 +38,8 @@ function AuthForm({ onAuthSuccess }) {
 
     setIsSubmitting(true);
 
-    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const rawApiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const API_BASE = rawApiBase.replace(/\/+$/, '');
     const endpoint = isLoginMode
       ? `${API_BASE}/api/auth/login`
       : `${API_BASE}/api/auth/register`;
@@ -54,10 +55,14 @@ function AuthForm({ onAuthSuccess }) {
         body: JSON.stringify(payload),
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(data.error || 'Authentication failed');
+        throw new Error((data && data.error) || `Server returned error (${response.status} ${response.statusText})`);
+      }
+
+      if (!data || !data.token) {
+        throw new Error('Invalid response from authentication server.');
       }
 
       // Success: pass token and user info to parent
