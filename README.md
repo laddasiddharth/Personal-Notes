@@ -82,6 +82,11 @@ Personal-Notes/
 │   ├── package.json           # Frontend dependencies, Vite & oxlint scripts
 │   ├── vercel.json            # Vercel SPA rewrite routing rules
 │   └── vite.config.js         # Vite bundler configuration
+<<<<<<< HEAD
+=======
+├── PROJECT_FILES_REPORT.md    # Detailed line-by-line explanation of every file
+├── PROJECT_NOTES.md           # Architecture manual & 75 interview/exam Q&As
+>>>>>>> 322b5f251554fd53f28cbabec678b91327ab97ed
 └── README.md                  # Project overview & documentation (this file)
 ```
 
@@ -228,6 +233,7 @@ Open `http://localhost:5173` in your browser.
 3. Environment Variables:
    - `MONGO_URI`: *Your MongoDB Atlas connection URI*
    - `JWT_SECRET`: *A secure random secret string*
+<<<<<<< HEAD
 
 ### 3. Frontend (Vercel)
 1. Import the repository on [Vercel](https://vercel.com/).
@@ -247,4 +253,31 @@ Render's free tier spins down after 15 minutes of inactivity. To eliminate cold 
 
 ## License
 
+=======
+
+### 3. Frontend (Vercel)
+1. Import the repository on [Vercel](https://vercel.com/).
+2. Select **`frontend`** as the Root Directory (Framework Preset: `Vite`).
+3. Add Environment Variable:
+   - `VITE_API_URL`: Your live Render backend URL **without trailing slash** (e.g., `https://personal-notes-8mgo.onrender.com`).
+4. Deploy. Vercel utilizes `frontend/vercel.json` for SPA route rewrites.
+
+### 4. Zero-Downtime Keep-Alive (cron-job.org)
+Render's free tier spins down after 15 minutes of inactivity. To eliminate cold starts:
+1. Register a free monitor on [cron-job.org](https://cron-job.org/).
+2. Set the target URL to `https://personal-notes-8mgo.onrender.com/`.
+3. Set the schedule to **Every 10 minutes** using HTTP `GET`.
+
+---
+
+## Documentation References
+
+- **[PROJECT_FILES_REPORT.md](file:///c:/Users/siddh/Desktop/College/SEM%207/FSF/MiniProject/PROJECT_FILES_REPORT.md):** Complete code guide explaining the responsibilities of every file.
+- **[PROJECT_NOTES.md](file:///c:/Users/siddh/Desktop/College/SEM%207/FSF/MiniProject/PROJECT_NOTES.md):** Comprehensive project manual containing 75 examination and interview technical Q&As.
+
+---
+
+## License
+
+>>>>>>> 322b5f251554fd53f28cbabec678b91327ab97ed
 This project is licensed under the ISC License.
