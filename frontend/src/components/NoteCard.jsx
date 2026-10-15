@@ -44,7 +44,7 @@ function NoteCard({ note, onEdit, onDelete, onTogglePin }) {
       {note.tags && note.tags.length > 0 && (
         <div className="note-tags-container">
           {note.tags.map((tag, index) => (
-            <span key={index} className="note-tag-pill">
+            <span key={`${tag}-${index}`} className="note-tag-pill">
               #{tag}
             </span>
           ))}
