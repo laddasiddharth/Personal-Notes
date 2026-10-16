@@ -34,7 +34,7 @@ function NoteCard({ note, onEdit, onDelete, onTogglePin }) {
           title={note.pinned ? 'Unpin note' : 'Pin to top'}
           onClick={() => onTogglePin(note)}
         >
-          {note.pinned ? '📌 Pinned' : 'Pin'}
+          {note.pinned ? 'Pinned' : 'Pin'}
         </button>
       </div>
 
