@@ -156,7 +156,7 @@ function NoteForm({ onSubmit, editingNote, onCancelEdit, isSubmitting }) {
             onChange={(e) => setPinned(e.target.checked)}
             disabled={isSubmitting}
           />
-          <span>📌 Pin this note to top</span>
+          <span>Pin this note to top</span>
         </label>
 
         <button type="submit" className="btn-submit" disabled={isSubmitting}>
