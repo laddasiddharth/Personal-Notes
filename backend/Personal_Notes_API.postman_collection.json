@@ -1,0 +1,199 @@
+{
+  "info": {
+    "_postman_id": "b8f1a234-9c8e-4a7b-8912-34567890abcd",
+    "name": "Personal Notes API",
+    "description": "Updated Postman Collection for testing the 4 core Note REST API endpoints. Automatically captures created note ID for subsequent PUT and DELETE requests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "noteId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Server Health Check",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Server is online\", function () {",
+              "    const res = pm.response.json();",
+              "    pm.expect(res.status).to.eql(\"online\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/",
+          "host": ["{{baseUrl}}"],
+          "path": [""]
+        },
+        "description": "Checks server health and verifies root status"
+      },
+      "response": []
+    },
+    {
+      "name": "2. Get All Notes",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Response is an array\", function () {",
+              "    const res = pm.response.json();",
+              "    pm.expect(Array.isArray(res)).to.be.true;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/notes",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "notes"]
+        },
+        "description": "Fetches all notes, sorted with pinned notes first and newest first"
+      },
+      "response": []
+    },
+    {
+      "name": "3. Create Note",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 201 Created\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "const res = pm.response.json();",
+              "pm.test(\"Note has _id\", function () {",
+              "    pm.expect(res._id).to.be.a(\"string\");",
+              "});",
+              "if (res._id) {",
+              "    pm.collectionVariables.set(\"noteId\", res._id);",
+              "    console.log(\"Saved noteId to collection variable:\", res._id);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Postman Demo Note\",\n  \"content\": \"Testing note creation directly from Postman.\",\n  \"tags\": [\"demo\", \"postman\"],\n  \"pinned\": true\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/notes",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "notes"]
+        },
+        "description": "Creates a new note and automatically saves returned _id to {{noteId}}"
+      },
+      "response": []
+    },
+    {
+      "name": "4. Update Note",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "const res = pm.response.json();",
+              "pm.test(\"Title updated successfully\", function () {",
+              "    pm.expect(res.title).to.include(\"Updated\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Postman Demo Note (Updated)\",\n  \"content\": \"Updated note body text from Postman.\",\n  \"pinned\": false\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/notes/{{noteId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "notes", "{{noteId}}"]
+        },
+        "description": "Updates an existing note using the {{noteId}} captured from Create Note"
+      },
+      "response": []
+    },
+    {
+      "name": "5. Delete Note",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "const res = pm.response.json();",
+              "pm.test(\"Delete confirmed with matching ID\", function () {",
+              "    pm.expect(res.id).to.eql(pm.collectionVariables.get(\"noteId\"));",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/notes/{{noteId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "notes", "{{noteId}}"]
+        },
+        "description": "Deletes the note with {{noteId}}"
+      },
+      "response": []
+    }
+  ]
+}

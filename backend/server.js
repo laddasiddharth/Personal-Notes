@@ -15,7 +15,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 4. Root endpoint (displays server status instead of "Cannot GET /")
+// 4. Root endpoint
 app.get('/', (req, res) => {
   res.status(200).json({
     status: 'online',
