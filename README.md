@@ -1,174 +1,164 @@
 # Personal Notes App
 
-A full-stack Personal Notes web application built with **React 19**, **Node.js**, **Express.js**, and **MongoDB Atlas with Mongoose**. Features JWT-based authentication, bcrypt password hashing, note pinning, tag filtering, real-time client-side search, strict multi-tenant data isolation, and a clean, production-grade light theme.
+A full-stack note-taking web application built with the MERN stack (MongoDB, Express.js, React, Node.js). Users can create, view, edit, delete, search, tag, and pin notes through a clean, responsive interface backed by a REST API.
 
 ---
 
-## Live Deployments & Links
-
-| Service | Platform | URL |
-|---|---|---|
-| **Backend API** | Render | [https://personal-notes-8mgo.onrender.com/](https://personal-notes-8mgo.onrender.com/) |
-| **Frontend App** | Vercel | Production deployment on Vercel |
-| **Database** | MongoDB Atlas | Cloud MongoDB M0 Cluster (`notes_db`) |
-| **Repository** | GitHub | [https://github.com/laddasiddharth/Personal-Notes](https://github.com/laddasiddharth/Personal-Notes) |
-
----
-
-## Core Features
-
-- **Authentication & Security:**
-  - Secure registration and login with strict input validation.
-  - Passwords hashed using `bcryptjs` with 10 salt rounds (never stored in plain text).
-  - Stateless authentication using JSON Web Tokens (JWT) with 7-day expiration.
-  - Multi-tenant data isolation: users can strictly view, edit, and delete only their own notes.
+## Features
 
 - **Note Management (CRUD):**
-  - Create, read, update, and delete notes.
-  - One-click pin/unpin functionality; pinned notes are dynamically prioritized at the top.
-  - Comma-separated tag organization with automatic whitespace trimming and deduplication.
-  - Real-time client-side search filtering across both note titles and tags.
-  - Human-readable creation date formatting.
-
-- **User Interface & Experience:**
-  - Modern, responsive light theme with crisp slate typography and subtle borders.
-  - Controlled forms with character count caps (title <= 200, content <= 20,000).
-  - Instant optimistic-style sorting: new notes appear at the top of their respective section.
-  - Loading spinners, empty states with contextual guidance, and safe error handling.
-
----
-
-## Technology Stack
-
-| Layer | Technologies |
-|---|---|
-| **Frontend** | React 19, Vite, Vanilla CSS3 (Custom Design System, CSS Grid & Flexbox) |
-| **Backend** | Node.js (v24), Express.js |
-| **Database** | MongoDB Atlas, Mongoose ODM |
-| **Authentication** | JSON Web Tokens (`jsonwebtoken`), `bcryptjs` |
-| **Testing & Linting** | Custom integration test suite (`test_api.js`), oxlint |
-| **Infrastructure** | Vercel (Frontend), Render (Backend), cron-job.org (Keep-Alive Ping) |
+  - Create new notes with title, content, tags, and pin status.
+  - Read/view all saved notes, automatically ordered with pinned notes at the top.
+  - Edit existing note details and update them in real time.
+  - Delete notes with a browser confirmation prompt.
+- **Pinning:**
+  - One-click pin/unpin toggle directly from the note card or during editing.
+- **Tagging:**
+  - Add comma-separated tags to organize notes.
+  - Automatic whitespace trimming and deduplication.
+- **Search & Filtering:**
+  - Live client-side search filtering across both note titles and tags as you type.
 
 ---
 
-## System Architecture
+## Tech Stack
+
+- **Frontend:** React, Vite, Vanilla CSS
+- **Backend:** Node.js, Express.js, CORS, Dotenv
+- **Database:** MongoDB Atlas, Mongoose ODM
+- **Deployment:** Vercel (Frontend), Render (Backend)
+
+---
+
+## Project Structure
 
 ```text
 Personal-Notes/
 ├── backend/
-│   ├── middleware/
-│   │   └── auth.js            # JWT verification & req.user injection
 │   ├── models/
-│   │   ├── Note.js            # Note schema, userId foreign key & compound index
-│   │   └── User.js            # User schema, RFC email regex & bcrypt hash
+│   │   └── Note.js          # Mongoose schema for notes (title, content, tags, pinned)
 │   ├── routes/
-│   │   ├── authRoutes.js      # /api/auth (register, login, me)
-│   │   └── noteRoutes.js      # /api/notes (protected CRUD endpoints)
-│   ├── .env.example           # Environment template (PORT, MONGO_URI, JWT_SECRET)
-│   ├── package.json           # Backend dependencies, scripts & npm test
-│   ├── server.js              # Express entry point, CORS, 404 & error handlers
-│   └── test_api.js            # Automated 26-assertion integration test suite
+│   │   └── noteRoutes.js    # Express routes for Note CRUD operations
+│   ├── .env.example         # Template for environment variables
+│   ├── package.json         # Backend dependencies & scripts
+│   └── server.js            # Express server entry point & MongoDB connection
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── AuthForm.jsx   # Tabbed Sign In / Register card with validation
-│   │   │   ├── NoteCard.jsx   # Individual note card, pin toggle, delete prompt
-│   │   │   └── NoteForm.jsx   # Controlled Create/Edit form with tag deduplication
-│   │   ├── App.jsx            # State coordinator, search filter & API client
-│   │   ├── App.css            # Component styles & responsive grid layout
-│   │   ├── index.css          # Design system tokens, variables & typography
-│   │   └── main.jsx           # React DOM root entry point
-│   ├── index.html             # Host HTML document
-│   ├── package.json           # Frontend dependencies, Vite & oxlint scripts
-│   ├── vercel.json            # Vercel SPA rewrite routing rules
-│   └── vite.config.js         # Vite bundler configuration
-└── README.md                  # Project overview & documentation (this file)
+│   │   │   ├── NoteCard.jsx # Note card component with edit, delete, and pin actions
+│   │   │   └── NoteForm.jsx # Form component for creating and editing notes
+│   │   ├── App.jsx          # Main application component & API handlers
+│   │   ├── App.css          # App layout and component styles
+│   │   ├── index.css        # Base styling and typography
+│   │   └── main.jsx         # React application entry point
+│   ├── index.html           # HTML template
+│   ├── package.json         # Frontend dependencies & scripts
+│   ├── vercel.json          # SPA routing configuration for Vercel
+│   └── vite.config.js       # Vite configuration
+└── README.md
 ```
 
 ---
 
-## Database Schemas
+## Database Schema
 
-### 1. User Schema (`backend/models/User.js`)
-```javascript
-{
-  name: { type: String, required: true, trim: true, maxlength: 100 },
-  email: { 
-    type: String, 
-    required: true, 
-    unique: true, 
-    lowercase: true, 
-    trim: true, 
-    maxlength: 254,
-    match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  },
-  password: { type: String, required: true, minlength: 6 }, // Stored as Bcrypt hash
-  createdAt: Date,
-  updatedAt: Date
-}
-```
+### Note Model (`backend/models/Note.js`)
 
-### 2. Note Schema (`backend/models/Note.js`)
-```javascript
-{
-  title: { type: String, required: true, trim: true, maxlength: 200 },
-  content: { type: String, required: true, maxlength: 20000 },
-  tags: { type: [String], default: [] },
-  pinned: { type: Boolean, default: false },
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-  createdAt: Date,
-  updatedAt: Date
-}
-
-// Compound index for optimal dashboard query performance:
-noteSchema.index({ userId: 1, pinned: -1, createdAt: -1 });
-```
-
----
-
-## REST API Reference
-
-### Authentication Endpoints (`/api/auth`)
-
-| Method | Endpoint | Description | Request Body | Headers | Status |
-|---|---|---|---|---|---|
-| `POST` | `/api/auth/register` | Register new user & issue JWT | `{ "name": "...", "email": "...", "password": "..." }` | `Content-Type: application/json` | `201`, `400` |
-| `POST` | `/api/auth/login` | Validate credentials & issue JWT | `{ "email": "...", "password": "..." }` | `Content-Type: application/json` | `200`, `400` |
-| `GET` | `/api/auth/me` | Fetch authenticated user profile | None | `Authorization: Bearer <token>` | `200`, `401`, `404` |
-
-### Notes Endpoints (`/api/notes`) *(All Require `Authorization: Bearer <token>`)*
-
-| Method | Endpoint | Description | Request Body | Status |
+| Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `GET` | `/api/notes` | Fetch notes belonging strictly to the user | None | `200`, `401` |
-| `POST` | `/api/notes` | Create a note (`userId` derived from token) | `{ "title": "...", "content": "...", "tags": [], "pinned": false }` | `201`, `400`, `401` |
-| `PUT` | `/api/notes/:id` | Update note (enforces ownership check) | `{ "title": "...", "content": "...", "tags": [], "pinned": false }` | `200`, `400`, `401`, `403`, `404` |
-| `DELETE` | `/api/notes/:id` | Delete note (enforces ownership check) | None | `200`, `400`, `401`, `403`, `404` |
+| `title` | String | Yes | — | Title of the note (max 200 characters) |
+| `content` | String | Yes | — | Body content of the note (max 20,000 characters) |
+| `tags` | Array of Strings | No | `[]` | Categorization tags |
+| `pinned` | Boolean | No | `false` | Whether the note is pinned to the top |
+| `createdAt` | Date | Auto | Current timestamp | Timestamp when note was created |
+| `updatedAt` | Date | Auto | Current timestamp | Timestamp when note was last modified |
 
----
+```javascript
+const noteSchema = new mongoose.Schema(
+  {
+    title: { type: String, required: true, trim: true, maxlength: 200 },
+    content: { type: String, required: true, maxlength: 20000 },
+    tags: { type: [String], default: [] },
+    pinned: { type: Boolean, default: false },
+  },
+  { timestamps: true }
+);
 
-## Automated Testing
-
-The backend includes a 26-assertion integration test suite verifying health checks, RFC email validation, Bcrypt password matching, MongoDB duplicate key race condition handling, note CRUD operations, and tag deduplication.
-
-```bash
-cd backend
-
-# Run tests against local server (http://localhost:5000)
-npm test
-
-# Run tests against live deployed server
-node test_api.js https://personal-notes-8mgo.onrender.com
+// Index to optimize dashboard query: pinned notes first, then newest
+noteSchema.index({ pinned: -1, createdAt: -1 });
 ```
 
 ---
 
-## Local Development Setup
+## REST API Documentation
+
+Base path: `/api/notes`
+
+### 1. Get All Notes
+* **Endpoint:** `GET /api/notes`
+* **Description:** Retrieves all notes sorted by pinned status (descending) and creation date (newest first).
+* **Response:** `200 OK`
+```json
+[
+  {
+    "_id": "6734abcd1234567890ef0001",
+    "title": "College To-Do List",
+    "content": "Submit assignment, prepare for seminar.",
+    "tags": ["college", "todo"],
+    "pinned": true,
+    "createdAt": "2026-10-16T10:00:00.000Z",
+    "updatedAt": "2026-10-16T10:00:00.000Z"
+  }
+]
+```
+
+### 2. Create Note
+* **Endpoint:** `POST /api/notes`
+* **Description:** Creates a new note.
+* **Headers:** `Content-Type: application/json`
+* **Request Body:**
+```json
+{
+  "title": "Project Meeting",
+  "content": "Discuss project milestones with guide.",
+  "tags": ["project", "college"],
+  "pinned": false
+}
+```
+* **Response:** `201 Created` (returns the created note object).
+
+### 3. Update Note
+* **Endpoint:** `PUT /api/notes/:id`
+* **Description:** Updates fields of an existing note by ID.
+* **Headers:** `Content-Type: application/json`
+* **Request Body:**
+```json
+{
+  "title": "Updated Meeting Notes",
+  "pinned": true
+}
+```
+* **Response:** `200 OK` (returns the updated note object).
+
+### 4. Delete Note
+* **Endpoint:** `DELETE /api/notes/:id`
+* **Description:** Deletes a note by ID.
+* **Response:** `200 OK`
+```json
+{
+  "message": "Note deleted successfully",
+  "id": "6734abcd1234567890ef0001"
+}
+```
+
+---
+
+## Local Setup & Installation
 
 ### Prerequisites
-- Node.js (v18 or higher)
-- npm (v9 or higher)
-- MongoDB Atlas account or local MongoDB instance
+* [Node.js](https://nodejs.org/) (v18 or higher)
+* [MongoDB](https://www.mongodb.com/) (Local instance or MongoDB Atlas cluster)
+* Git
 
 ### 1. Clone the repository
 ```bash
@@ -176,103 +166,66 @@ git clone https://github.com/laddasiddharth/Personal-Notes.git
 cd Personal-Notes
 ```
 
-### 2. Configure and run Backend
+### 2. Backend Setup
 ```bash
 cd backend
 npm install
-cp .env.example .env
 ```
 
-Configure `backend/.env`:
+Create a `.env` file in the `backend/` directory based on `.env.example`:
 ```env
 PORT=5000
 MONGO_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/notes_db?retryWrites=true&w=majority
-JWT_SECRET=your_secure_random_jwt_secret_key
 ```
 
-Start the backend:
+Start the backend server:
 ```bash
-# Development mode with nodemon
+# Development mode (auto-restarts on changes)
 npm run dev
 
-# Production mode
+# Or standard start
 npm start
 ```
+The server will run on `http://localhost:5000`.
 
-### 3. Configure and run Frontend
-In a second terminal window:
+### 3. Frontend Setup
+Open a new terminal window:
 ```bash
 cd frontend
 npm install
-npm run dev
 ```
 
+Start the Vite development server:
+```bash
+npm run dev
+```
 Open `http://localhost:5173` in your browser.
 
 ---
 
-## Production Deployment & Infrastructure
+## Deployment
 
-### 1. Database (MongoDB Atlas)
-1. Create a free **M0 Shared Cluster** on [MongoDB Atlas](https://www.mongodb.com/cloud/atlas).
-2. Under **Security ➔ Network Access**, add `0.0.0.0/0` (Allow Access from Anywhere) to permit cloud connections.
-3. Under **Security ➔ Database Access**, create a user with read/write permissions.
-4. Copy the connection string into the backend environment variables.
-
-### 2. Backend (Render)
-1. Create a **New Web Service** on [Render](https://dashboard.render.com/) and connect this repository.
+### Backend (Render)
+1. Create a Web Service on [Render](https://render.com/) pointing to this repository.
 2. Settings:
    - **Root Directory:** `backend`
    - **Build Command:** `npm install`
    - **Start Command:** `node server.js`
-3. Environment Variables:
-   - `MONGO_URI`: *Your MongoDB Atlas connection URI*
-   - `JWT_SECRET`: *A secure random secret string*
-<<<<<<< HEAD
-
-### 3. Frontend (Vercel)
-1. Import the repository on [Vercel](https://vercel.com/).
-2. Select **`frontend`** as the Root Directory (Framework Preset: `Vite`).
 3. Add Environment Variable:
-   - `VITE_API_URL`: Your live Render backend URL **without trailing slash** (e.g., `https://personal-notes-8mgo.onrender.com`).
-4. Deploy. Vercel utilizes `frontend/vercel.json` for SPA route rewrites.
+   - `MONGO_URI`: Your MongoDB Atlas connection string.
 
-### 4. Zero-Downtime Keep-Alive (cron-job.org)
-Render's free tier spins down after 15 minutes of inactivity. To eliminate cold starts:
-1. Register a free monitor on [cron-job.org](https://cron-job.org/).
-2. Set the target URL to `https://personal-notes-8mgo.onrender.com/`.
-3. Set the schedule to **Every 10 minutes** using HTTP `GET`.
-
+### Frontend (Vercel)
+1. Import the project on [Vercel](https://vercel.com/).
+2. Settings:
+   - **Root Directory:** `frontend`
+   - **Framework Preset:** `Vite`
+   - **Build Command:** `npm run build`
+   - **Output Directory:** `dist`
+3. Add Environment Variable (Type: **Config**):
+   - `VITE_API_URL`: Your deployed Render backend URL (e.g., `https://your-backend.onrender.com` without trailing slash).
 
 ---
 
 ## License
 
-=======
-
-### 3. Frontend (Vercel)
-1. Import the repository on [Vercel](https://vercel.com/).
-2. Select **`frontend`** as the Root Directory (Framework Preset: `Vite`).
-3. Add Environment Variable:
-   - `VITE_API_URL`: Your live Render backend URL **without trailing slash** (e.g., `https://personal-notes-8mgo.onrender.com`).
-4. Deploy. Vercel utilizes `frontend/vercel.json` for SPA route rewrites.
-
-### 4. Zero-Downtime Keep-Alive (cron-job.org)
-Render's free tier spins down after 15 minutes of inactivity. To eliminate cold starts:
-1. Register a free monitor on [cron-job.org](https://cron-job.org/).
-2. Set the target URL to `https://personal-notes-8mgo.onrender.com/`.
-3. Set the schedule to **Every 10 minutes** using HTTP `GET`.
-
----
-
-## Documentation References
-
-- **[PROJECT_FILES_REPORT.md](file:///c:/Users/siddh/Desktop/College/SEM%207/FSF/MiniProject/PROJECT_FILES_REPORT.md):** Complete code guide explaining the responsibilities of every file.
-- **[PROJECT_NOTES.md](file:///c:/Users/siddh/Desktop/College/SEM%207/FSF/MiniProject/PROJECT_NOTES.md):** Comprehensive project manual containing 75 examination and interview technical Q&As.
-
----
-
-## License
-
->>>>>>> 322b5f251554fd53f28cbabec678b91327ab97ed
 This project is licensed under the ISC License.
