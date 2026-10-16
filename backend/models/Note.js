@@ -22,23 +22,16 @@ const noteSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: [true, 'Note owner userId is required'],
-      index: true,
-    },
   },
   {
-    // Automatically adds `createdAt` and `updatedAt` timestamps to documents
+    // Automatically adds createdAt and updatedAt timestamps
     timestamps: true,
   }
 );
 
-// Compound index to optimize the query: Note.find({ userId }).sort({ pinned: -1, createdAt: -1 })
-noteSchema.index({ userId: 1, pinned: -1, createdAt: -1 });
+// Index to optimize query sorting: pinned notes first, then newest first
+noteSchema.index({ pinned: -1, createdAt: -1 });
 
-// Create the model from the schema
 const Note = mongoose.model('Note', noteSchema);
 
 module.exports = Note;
